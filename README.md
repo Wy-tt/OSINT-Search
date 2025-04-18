@@ -21,6 +21,16 @@ OSINT V1 Goals:
   -Dump from URLHaus,
   -URLScan.io,
 
----Integrations With SHODAN search will be included as testing is concluded with the above
+Initial Setup for use each user will need to gather the Requisit API Keys.
+This will include creating a file titled "Config.json" with the following format:
 
-Each of the Above steps will generate a clear report with summary information on the top of the page followed by Detailed information by source further down the page.
+{
+  "Virus Total": "Key_Value",
+  "AbuseIPDB": "Key_Value",
+  "GreyNoise": "Key_Value",
+  "Hybrid Analysis": "Key_Value"
+}
+
+***Each of these entities has their own API Access Rules, each user is responsible for ensuring access is within those rules.
+
+Each of the Above steps will generate a clear report with summary information on the top of the page followed by detailed information and include the option for a verbose (-v) output with additional details.

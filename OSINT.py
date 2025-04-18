@@ -6,12 +6,18 @@ import re
 import os
 import sys
 
+# Import Report Builders from second Page
+from Report import verbose_outfile
+from Report import write_outfile
+from Report import write_hashfile
+from Report import verbose_hashfile
+
 def main():
   # ArgParse Options
   parser = argparse.ArgumentParser()
   parser.add_argument("-d", help="Domain address to Search", action='store', nargs='*')
   parser.add_argument("-e", help="Email address to Search Reputation", action='store', nargs='*')
-  parser.add_argument("-f", "--file", help="File Hash to Check", action='store', nargs='*')
+  parser.add_argument("-f", "--file", help="File Hash to Check, Best return utilize SHA256 Hash.", action='store', nargs='*')
   parser.add_argument("-i", "--ip", help="IP Address for Search", action='store', nargs='*')
   parser.add_argument("-u", help="URL For Search and Scan", action='store',)
   parser.add_argument("-r", help='Raw Data output to Individual files', action='store_true')
@@ -48,77 +54,7 @@ api_keys = json.loads(api_contents)
 Virustotal = api_keys["Virus Total"]
 AbuseIPDB = api_keys["AbuseIPDB"]
 GreyNoise = api_keys["GreyNoise"]
-
-def verbose_outfile(arg, vtiphist, ipdbhist, greyhist):
-    print("Building Verbose IP History File")
-    votes = vtiphist["data"]["attributes"]["total_votes"]
-    whois = vtiphist["data"]["attributes"]["whois"]
-    country = vtiphist["data"]["attributes"]["country"]
-    ca_information = vtiphist["data"]["attributes"]["last_https_certificate"]["extensions"]["ca_information_access"]
-    cert_issuer = vtiphist["data"]["attributes"]["last_https_certificate"]["issuer"]
-    cert_subject = vtiphist["data"]["attributes"]["last_https_certificate"]["subject"]
-    valid  = vtiphist["data"]["attributes"]["last_https_certificate"]["validity"]
-    confidence = ipdbhist["data"]["abuseConfidenceScore"]
-    country2 = ipdbhist["data"]["countryCode"]
-    usage = ipdbhist["data"]["usageType"]
-    whitelist = ipdbhist["data"]["isWhitelisted"]
-    domain = ipdbhist["data"]["domain"]
-    classification = greyhist["classification"]
-    outfile = open(f"{arg}.txt", 'w')
-    outfile.write(f"""Report from Multiple sources:
--------------HEADLINE INFORMATION-------------------
-Total Votes from Virus Total: {votes}
-AbuseIPDB Abuse Conifdence Score: {confidence}
-*Abuse IPDB WhiteList Status: {whitelist}
-Grey Noise Classification: {classification}
---------------Additional Data-----------------------
-Who Is Data From Virus Total:
-{whois}
-
-Possible Country Attribution:
-Virus Total Country: {country}
-AbuseIPDB Country: {country2}
-
-Certificate information:
-{ca_information}
-Cert Issuer:
-{cert_issuer}
-Cert Subject: {cert_subject}
-Abuse IPDB usage type: {usage}
-Abuse IPDB Domain: {domain}
-Certificate Valid Dates:
-{valid}
-""")
-
-def write_outfile(arg, vtiphist, ipdbhist, greyhist):
-    print("Building IP History File")
-    votes = vtiphist["data"]["attributes"]["total_votes"]
-    whois = vtiphist["data"]["attributes"]["whois"]
-    country = vtiphist["data"]["attributes"]["country"]
-    ca_information = vtiphist["data"]["attributes"]["last_https_certificate"]["extensions"]["ca_information_access"]
-    valid  = vtiphist["data"]["attributes"]["last_https_certificate"]["validity"]
-    confidence = ipdbhist["data"]["abuseConfidenceScore"]
-    country2 = ipdbhist["data"]["countryCode"]
-    classification = greyhist["classification"]
-    outfile = open(f"{arg}.txt", 'w')
-    outfile.write(f"""Report from Multiple sources:
--------------HEADLINE INFORMATION-------------------
-Total Votes from Virus Total: {votes}
-AbuseIPDB Abuse Conifdence Score: {confidence}
-Grey Noise Classification: {classification}
---------------Additional Data-----------------------
-Who Is Data From Virus Total:
-{whois}
-
-Possible Country Attribution:
-Virus Total Country: {country}
-AbuseIPDB Country: {country2}
-
-Certificate information:
-{ca_information}
-Certificate Valid Dates:
-{valid}
-""")
+HybridAnalysis = api_keys["Hybrid Analysis"]
 
 def print_raw(arg, vtiphist, ipdbhist):
   home_dir = os.path.expanduser("~")
@@ -127,11 +63,11 @@ def print_raw(arg, vtiphist, ipdbhist):
   raw_ipdb = f"raw-{arg}-AbuseIPDB.json"
   file_ipdb = os.path.join(home_dir, raw_ipdb)
   with open(file_vt, 'w') as file:
-    print(vtiphist)
+    json.dump(vtiphist, file)
     file.close
     print(f"Virus Total IP Information Json File stored at {file_vt}")
   with open(file_ipdb, 'w') as file:
-    print(ipdbhist)
+    json.dump(ipdbhist, file)
     file.close
     print(f"AbuseIPDB IP Information Json File stored at {file_ipdb}")
 
@@ -143,9 +79,7 @@ def IP_Hist(arg, raw, verbose):
     'x-apikey': f'{Virustotal}'
   }
   vtresponse = requests.get(vt_url, headers=vt_headers)
-  # Grab "important" Fields from json return
   vtiphist = json.loads(vtresponse.text)
-  #build_filevt(arg, vtiphist)
 
   #AbuseIPDB API Request
   ipdb_url = 'https://api.abuseipdb.com/api/v2/check'
@@ -158,7 +92,6 @@ def IP_Hist(arg, raw, verbose):
     'Key': f'{AbuseIPDB}'
   }
   ipdb_response = requests.request(method='GET', url=ipdb_url, headers=ipdb_headers, params=querystring)
-  # Formatted output
   ipdbhist = json.loads(ipdb_response.content)
    
   #Grey Noise API IP Lookup
@@ -168,10 +101,9 @@ def IP_Hist(arg, raw, verbose):
     'key': f'{GreyNoise}'
   }
   grey_response = requests.get(grey_url, headers=grey_headers)
-
   greyhist = json.loads(grey_response.text)
 
-  #Call Output File Function
+  #Call Output File Function including handles for Verbose and Raw Output
   if raw == True:
     print("Printing Raw Outputs to files")
     print_raw(arg, vtiphist, ipdbhist)
@@ -181,18 +113,51 @@ def IP_Hist(arg, raw, verbose):
   else:
     write_outfile(arg, vtiphist, ipdbhist, greyhist)
 
-def filerep(arg, hashsearch):
+# Grab and report on File Hash Reputation
+def filerep(arg, hashsearch, verbose):
   url = f'https://www.virustotal.com/api/v3/files/{arg}'
   headers = {
     'accept': 'application/json',
     'x-apikey': f'{Virustotal}'
     }
-  response = requests.get(url, headers=headers)
-  print(response.text)
+  vt_hashresponse = requests.get(url, headers=headers)
+
+  haurl = f'https://www.hybrid-analysis.com/api/v2/overview/{arg}'
+  haheaders = {
+    'accept': 'application/json',
+    'api-key': f'{HybridAnalysis}'
+  }
+  ha_hashresponse = requests.get(url=haurl, headers=haheaders)
+
+  # Circul Requires searches Separated by Hash Type
+  if hashsearch == 'md5':
+    url = f'https://hashlookup.circl.lu/lookup/md5/{arg}'
+    headers = {
+      'accept': 'application/json',
+      }
+    circul_response = requests.get(url, headers=headers)
+  elif hashsearch == 'sha1':
+    url = f'https://hashlookup.circl.lu/lookup/sha1/{arg}'
+    headers = {
+      'accept': 'application/json',
+      }
+    circul_response = requests.get(url, headers=headers)
+  elif hashsearch == 'sha256':
+    url = f'https://hashlookup.circl.lu/lookup/sha256/{arg}'
+    headers = {
+      'accept': 'application/json',
+      }
+    circul_response = requests.get(url, headers=headers)
+  
+  if verbose == True:
+    print("Print Verbose Output File")
+    verbose_hashfile(arg, vt_hashresponse, circul_response, ha_hashresponse)
+  else:
+    write_hashfile(arg, vt_hashresponse, circul_response, ha_hashresponse)
+
 
 # Confirm IP format and Start IP History Loop
 def iphistloop(args):
-  print('Loop executed')
   ipv4_pattern = r"\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}"
   raw = args.r
   verbose = args.v
@@ -205,21 +170,23 @@ def iphistloop(args):
 
 # Grab Hash Argument and run Hash Check loop
 def hashloop(args):
+  raw = args.r
+  verbose = args.v
   hashtype = input("""Please Choose the Hash Algorithm for Search:
 1. MD5
-2. SHA256
-3. SHA 512
+2. SHA1
+3. SHA256
 """)
-  for val in args.file:
+  for arg in args.file:
     if hashtype == '1':
       hashsearch = 'md5'
-      filerep(val, hashsearch)
+      filerep(arg, hashsearch, verbose)
     elif hashtype == '2':
-      hashsearch = 'sha256'
-      filerep(val, hashsearch)
+      hashsearch = 'sha1'
+      filerep(arg, hashsearch, verbose)
     elif hashtype == '3':
-      hashsearch = 'sha512'
-      filerep(val, hashsearch)
+      hashsearch = 'sha256'
+      filerep(arg, hashsearch, verbose)
     else:
       print("The only currently supported values are 1, 2, 3. Please re-run the program.")
 
