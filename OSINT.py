@@ -11,6 +11,11 @@ from Report import verbose_outfile
 from Report import write_outfile
 from Report import write_hashfile
 from Report import verbose_hashfile
+from Report import print_raw
+from Report import print_raw_hash
+from Report import print_raw_domain
+from Report import domain_outfile
+from Report import verbose_domain
 
 def main():
   # ArgParse Options
@@ -39,6 +44,7 @@ def main():
       hashloop(args)
     elif (input != None) & (var == 'd'):
       print(f"Domain Present: {input}")
+      domainloop(args)
     elif (input != None) & (var == 'e'):
       print(f"Email Present: {input}")
     elif (input != None) & (var == 'u'):
@@ -56,20 +62,6 @@ AbuseIPDB = api_keys["AbuseIPDB"]
 GreyNoise = api_keys["GreyNoise"]
 HybridAnalysis = api_keys["Hybrid Analysis"]
 
-def print_raw(arg, vtiphist, ipdbhist):
-  home_dir = os.path.expanduser("~")
-  raw_vt = f"raw-{arg}-VirusTotal.json"
-  file_vt = os.path.join(home_dir, raw_vt)
-  raw_ipdb = f"raw-{arg}-AbuseIPDB.json"
-  file_ipdb = os.path.join(home_dir, raw_ipdb)
-  with open(file_vt, 'w') as file:
-    json.dump(vtiphist, file)
-    file.close
-    print(f"Virus Total IP Information Json File stored at {file_vt}")
-  with open(file_ipdb, 'w') as file:
-    json.dump(ipdbhist, file)
-    file.close
-    print(f"AbuseIPDB IP Information Json File stored at {file_ipdb}")
 
 def IP_Hist(arg, raw, verbose):
   #Virus Total API Request
@@ -114,7 +106,7 @@ def IP_Hist(arg, raw, verbose):
     write_outfile(arg, vtiphist, ipdbhist, greyhist)
 
 # Grab and report on File Hash Reputation
-def filerep(arg, hashsearch, verbose):
+def filerep(arg, hashsearch, raw, verbose):
   url = f'https://www.virustotal.com/api/v3/files/{arg}'
   headers = {
     'accept': 'application/json',
@@ -148,13 +140,43 @@ def filerep(arg, hashsearch, verbose):
       'accept': 'application/json',
       }
     circul_response = requests.get(url, headers=headers)
-  
-  if verbose == True:
+
+  if raw == True:
+    print("Output Raw Json to files")
+    vthashcon = json.loads(vt_hashresponse.content)
+    circulhashcon = json.loads(circul_response.content)
+    hahashcon = json.loads(ha_hashresponse.content)
+    print_raw_hash(vthashcon, circulhashcon, hahashcon)
+  elif verbose == True:
     print("Print Verbose Output File")
     verbose_hashfile(arg, vt_hashresponse, circul_response, ha_hashresponse)
   else:
     write_hashfile(arg, vt_hashresponse, circul_response, ha_hashresponse)
 
+def domain_check(arg, raw, verbose):
+  url = f"https://www.virustotal.com/api/v3/domains/{arg}"
+  headers = {
+    "accept": "application/json",
+    "x-apikey": f"{Virustotal}"
+    }
+  vt_domainres = requests.get(url, headers=headers)
+
+  if raw == True:
+    print("Print Raw Output File")
+    print_raw_domain(arg, vt_domainres)
+  elif verbose == True:
+    print("Printing Verbose Outfile")
+    verbose_domain(arg, vt_domainres)
+  else:
+    print("Printing Domain Output file")
+    domain_outfile(arg, vt_domainres)
+
+# Run Domain Check Loop
+def domainloop(args):
+  raw = args.r
+  verbose = args.v
+  for arg in args.d:
+    domain_check(arg, raw, verbose)
 
 # Confirm IP format and Start IP History Loop
 def iphistloop(args):
@@ -180,13 +202,13 @@ def hashloop(args):
   for arg in args.file:
     if hashtype == '1':
       hashsearch = 'md5'
-      filerep(arg, hashsearch, verbose)
+      filerep(arg, hashsearch, raw, verbose)
     elif hashtype == '2':
       hashsearch = 'sha1'
-      filerep(arg, hashsearch, verbose)
+      filerep(arg, hashsearch, raw, verbose)
     elif hashtype == '3':
       hashsearch = 'sha256'
-      filerep(arg, hashsearch, verbose)
+      filerep(arg, hashsearch, raw, verbose)
     else:
       print("The only currently supported values are 1, 2, 3. Please re-run the program.")
 

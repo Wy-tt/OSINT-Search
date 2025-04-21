@@ -77,6 +77,68 @@ Certificate information:
 Certificate Valid Dates:
 {valid}
 """)
+    
+def domain_outfile(arg, vt_domainres):
+    print("Building Domain History File")
+    vtdomain = json.loads(vt_domainres.text)
+    stats = vtdomain["data"]["attributes"]["last_analysis_stats"]
+    votes = vtdomain["data"]["attributes"]["total_votes"]
+    reputation = vtdomain["data"]["attributes"]["reputation"]
+    ca_information = vtdomain["data"]["attributes"]["last_https_certificate"]["extensions"]["ca_information_access"]
+    valid  = vtdomain["data"]["attributes"]["last_https_certificate"]["validity"]
+    home_dir = os.path.expanduser("~")
+    outputfile = f"{arg}-Standard.txt"
+    output = os.path.join(home_dir, outputfile)
+    outfile = open(output, 'w')
+    outfile.write(f"""Report from Multiple sources:
+-------------HEADLINE INFORMATION-------------------
+Total Votes from Virus Total: {votes}
+--------------Additional Data-----------------------
+Last Analysis Statistics From Virus Total:
+{stats}
+Reputation score From Virus Total:
+{reputation}
+
+Certificate information:
+{ca_information}
+Certificate Valid Dates:
+{valid}
+""")
+    
+def verbose_domain(arg, vt_domainres):
+    print("Building Verbose Domain History File")
+    vtdomain = json.loads(vt_domainres.text)
+    stats = vtdomain["data"]["attributes"]["last_analysis_stats"]
+    votes = vtdomain["data"]["attributes"]["total_votes"]
+    reputation = vtdomain["data"]["attributes"]["reputation"]
+    ca_information = vtdomain["data"]["attributes"]["last_https_certificate"]["extensions"]["ca_information_access"]
+    valid  = vtdomain["data"]["attributes"]["last_https_certificate"]["validity"]
+    certissue = valid  = vtdomain["data"]["attributes"]["last_https_certificate"]["issuer"]
+    altname = vtdomain["data"]["attributes"]["last_https_certificate"]["extensions"]["subject_alternative_name"]
+    category =  vtdomain["data"]["attributes"]["categories"]
+    home_dir = os.path.expanduser("~")
+    outputfile = f"{arg}-Verbose.txt"
+    output = os.path.join(home_dir, outputfile)
+    outfile = open(output, 'w')
+    outfile.write(f"""Report from Multiple sources:
+-------------HEADLINE INFORMATION-------------------
+Total Votes from Virus Total: {votes}
+--------------Additional Data-----------------------
+Last Analysis Statistics From Virus Total:
+{stats}
+Reputation score From Virus Total:
+{reputation}
+
+Certificate information:
+{ca_information}
+{certissue}
+Certificate Valid Dates:
+{valid}
+Subject Alternative names list:
+{altname}
+Business Categories:
+{category}
+""")
 
 def verbose_hashfile(arg, vt_hashresponse, circul_response, ha_hashresponse):
     print("Building Verbose Hash Information File")
@@ -177,3 +239,49 @@ Scale: 0-100
 
 Circul Associated Filename:
 """)
+
+def print_raw(arg, vtiphist= 'None', ipdbhist= 'None', vt_domainres= 'None'):
+  home_dir = os.path.expanduser("~")
+  raw_vt = f"raw-{arg}-VirusTotal.json"
+  file_vt = os.path.join(home_dir, raw_vt)
+  raw_ipdb = f"raw-{arg}-AbuseIPDB.json"
+  file_ipdb = os.path.join(home_dir, raw_ipdb)
+  with open(file_vt, 'w') as file:
+    json.dump(vtiphist, file)
+    file.close
+    print(f"Virus Total IP Information Json File stored at {file_vt}")
+  with open(file_ipdb, 'w') as file:
+    json.dump(ipdbhist, file)
+    file.close
+    print(f"AbuseIPDB IP Information Json File stored at {file_ipdb}")
+
+def print_raw_hash(vthashcon, circulhashcon, hahashcon):
+    home_dir = os.path.expanduser("~")
+    raw_vthash = "raw-vthashreport.json"
+    vthash_out = os.path.join(home_dir, raw_vthash)
+    raw_circul = "raw-circulhash.json"
+    circulhash_out = os.path.join(home_dir, raw_circul)
+    raw_hahash = "raw-hahashreport.json"
+    hahash_out = os.path.join(home_dir, raw_hahash)
+    with open(vthash_out, 'w') as file:
+        json.dump(vthashcon, file)
+        file.close
+        print(f"Virus Total Hash Report Json stored at {vthash_out}")
+    with open(circulhash_out, 'w') as file:
+        json.dump(circulhashcon, file)
+        file.close
+        print(f"Circul Hash Report stored at {circulhash_out}")
+    with open(hahash_out, 'w') as file:
+        json.dump(hahashcon, file)
+        file.close
+        print(f"Hybrid Analysis hHash Report stored at {hahash_out}")
+
+def print_raw_domain(arg, vt_domainres):
+    home_dir = os.path.expanduser("~")
+    vtdom = json.loads(vt_domainres.text)
+    raw_vtdom = f"raw-{arg}-domainreport.json"
+    vtdom_out = os.path.join(home_dir, raw_vtdom)
+    with open(vtdom_out, 'w') as file:
+        json.dump(vtdom, file)
+        file.close
+        print(f"Virtus Total Raw Domain Report Json file stored {vtdom_out}")
