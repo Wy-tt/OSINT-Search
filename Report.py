@@ -23,7 +23,7 @@ def verbose_outfile(arg, vtiphist, ipdbhist, greyhist):
     outfile.write(f"""Report from Multiple sources:
 -------------HEADLINE INFORMATION-------------------
 Total Votes from Virus Total: {votes}
-AbuseIPDB Abuse Conifdence Score: {confidence}
+AbuseIPDB Abuse Confidence Score: {confidence}
 *Abuse IPDB WhiteList Status: {whitelist}
 Grey Noise Classification: {classification}
 --------------Additional Data-----------------------
@@ -62,7 +62,7 @@ def write_outfile(arg, vtiphist, ipdbhist, greyhist):
     outfile.write(f"""Report from Multiple sources:
 -------------HEADLINE INFORMATION-------------------
 Total Votes from Virus Total: {votes}
-AbuseIPDB Abuse Conifdence Score: {confidence}
+AbuseIPDB Abuse Confidence Score: {confidence}
 Grey Noise Classification: {classification}
 --------------Additional Data-----------------------
 Who Is Data From Virus Total:
@@ -170,7 +170,7 @@ def verbose_hashfile(arg, vt_hashresponse, circul_response, ha_hashresponse):
     outputfile = "Hash-Verbose.txt"
     output = os.path.join(home_dir, outputfile)
     outfile = open(output, 'w')
-    outfile.write(f"""Report from Virus Total and Circul.lu APIs:
+    outfile.write(f"""Report from Multiple sources:
 -------------HEADLINE INFORMATION-------------------
 Hash searched: {arg}
 Total Votes from Virus Total: {votes}
@@ -195,7 +195,7 @@ Scale: 0-100
 > 50 = Appears in Multiple sources and has an improved Trust
 """)
 
-def write_hashfile(arg,  vt_hashresponse, circul_response, ha_hashresponse):
+def write_hashfile(arg, vt_hashresponse, circul_response, ha_hashresponse):
     print("Building Hash Information File")
     vthash = json.loads(vt_hashresponse.text)
     circulhash = json.loads(circul_response.text)
@@ -218,7 +218,7 @@ def write_hashfile(arg,  vt_hashresponse, circul_response, ha_hashresponse):
     outputfile = "Hash-Standard.txt"
     output = os.path.join(home_dir, outputfile)
     outfile = open(output, 'w')
-    outfile.write(f"""Report from Virus Total and Circul.lu APIs:
+    outfile.write(f"""Report from Multiple sources:
 -------------HEADLINE INFORMATION-------------------
 Hash searched: {arg}
 Total Votes from Virus Total: {votes}
@@ -239,8 +239,38 @@ Scale: 0-100
 
 Circul Associated Filename:
 """)
+    
+def write_urlscan(uuid, re_response):
+    print("Building URL Scan Result File")
+    urlscan = json.loads(re_response.text)
+    verdict = urlscan["verdicts"]
+    home_dir = os.path.expanduser("~")
+    outputfile = "Urlscan-Standard.txt"
+    output = os.path.join(home_dir, outputfile)
+    outfile = open(output, 'w')
+    outfile.write(f"""Verdict Report from Urlscan.io:
+-------------HEADLINE INFORMATION-------------------
+UUID of Scan: {uuid}
+Votes Listed: 
+{verdict}
+""")
+    
+def verbose_urlscan(uuid, re_response):
+    print("Building URL Scan Result File")
+    urlscan = json.loads(re_response.text)
+    verdict = urlscan["verdicts"]
+    home_dir = os.path.expanduser("~")
+    outputfile = "Urlscan-Verbose.txt"
+    output = os.path.join(home_dir, outputfile)
+    outfile = open(output, 'w')
+    outfile.write(f"""Verdict Report from Urlscan.io:
+-------------HEADLINE INFORMATION-------------------
+UUID of Scan: {uuid}
+Votes Listed: 
+{verdict}
+""")
 
-def print_raw(arg, vtiphist= 'None', ipdbhist= 'None', vt_domainres= 'None'):
+def print_raw(arg, vtiphist, ipdbhist):
   home_dir = os.path.expanduser("~")
   raw_vt = f"raw-{arg}-VirusTotal.json"
   file_vt = os.path.join(home_dir, raw_vt)
@@ -274,7 +304,7 @@ def print_raw_hash(vthashcon, circulhashcon, hahashcon):
     with open(hahash_out, 'w') as file:
         json.dump(hahashcon, file)
         file.close
-        print(f"Hybrid Analysis hHash Report stored at {hahash_out}")
+        print(f"Hybrid Analysis Hash Report stored at {hahash_out}")
 
 def print_raw_domain(arg, vt_domainres):
     home_dir = os.path.expanduser("~")
@@ -285,3 +315,13 @@ def print_raw_domain(arg, vt_domainres):
         json.dump(vtdom, file)
         file.close
         print(f"Virtus Total Raw Domain Report Json file stored {vtdom_out}")
+
+def print_raw_urlscan(re_response):
+    home_dir = os.path.expanduser("~")
+    urlscan = json.loads(re_response.text)
+    raw_url = "UrlReport.json"
+    url_out = os.path.join(home_dir, raw_url)
+    with open(url_out, 'w') as file:
+        json.dump(urlscan, file)
+        file.close
+        print(f"UrlScan.io Raw URL Report Json file stored {url_out}")

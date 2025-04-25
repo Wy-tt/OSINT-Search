@@ -3,10 +3,10 @@ import json
 import argparse
 import requests
 import re
-import os
 import sys
+import time
 
-# Import Report Builders from second Page
+# Import Report Builders from Report.py
 from Report import verbose_outfile
 from Report import write_outfile
 from Report import write_hashfile
@@ -14,8 +14,11 @@ from Report import verbose_hashfile
 from Report import print_raw
 from Report import print_raw_hash
 from Report import print_raw_domain
+from Report import print_raw_urlscan
 from Report import domain_outfile
 from Report import verbose_domain
+from Report import write_urlscan
+from Report import verbose_urlscan
 
 def main():
   # ArgParse Options
@@ -24,7 +27,7 @@ def main():
   parser.add_argument("-e", help="Email address to Search Reputation", action='store', nargs='*')
   parser.add_argument("-f", "--file", help="File Hash to Check, Best return utilize SHA256 Hash.", action='store', nargs='*')
   parser.add_argument("-i", "--ip", help="IP Address for Search", action='store', nargs='*')
-  parser.add_argument("-u", help="URL For Search and Scan", action='store',)
+  parser.add_argument("-u", help="URL For Scan with UrlScan.io", action='store', nargs='*')
   parser.add_argument("-r", help='Raw Data output to Individual files', action='store_true')
   parser.add_argument("-v", help='Add Verbose return Information', action='store_true')
   
@@ -49,6 +52,7 @@ def main():
       print(f"Email Present: {input}")
     elif (input != None) & (var == 'u'):
       print(f"URL Present: {input}")
+      scan_loop(args)
 
 # API Key retrieve
 with open('Config.json') as user_file:
@@ -61,6 +65,7 @@ Virustotal = api_keys["Virus Total"]
 AbuseIPDB = api_keys["AbuseIPDB"]
 GreyNoise = api_keys["GreyNoise"]
 HybridAnalysis = api_keys["Hybrid Analysis"]
+UrlScan = api_keys["UrlScan"]
 
 
 def IP_Hist(arg, raw, verbose):
@@ -105,8 +110,9 @@ def IP_Hist(arg, raw, verbose):
   else:
     write_outfile(arg, vtiphist, ipdbhist, greyhist)
 
-# Grab and report on File Hash Reputation
+#Grab and report on File Hash Reputation
 def filerep(arg, hashsearch, raw, verbose):
+  #VirusTotal API
   url = f'https://www.virustotal.com/api/v3/files/{arg}'
   headers = {
     'accept': 'application/json',
@@ -114,6 +120,7 @@ def filerep(arg, hashsearch, raw, verbose):
     }
   vt_hashresponse = requests.get(url, headers=headers)
 
+  #Hybrid Analysis API
   haurl = f'https://www.hybrid-analysis.com/api/v2/overview/{arg}'
   haheaders = {
     'accept': 'application/json',
@@ -121,7 +128,7 @@ def filerep(arg, hashsearch, raw, verbose):
   }
   ha_hashresponse = requests.get(url=haurl, headers=haheaders)
 
-  # Circul Requires searches Separated by Hash Type
+  #Circul Requires searches Separated by Hash Type
   if hashsearch == 'md5':
     url = f'https://hashlookup.circl.lu/lookup/md5/{arg}'
     headers = {
@@ -154,10 +161,11 @@ def filerep(arg, hashsearch, raw, verbose):
     write_hashfile(arg, vt_hashresponse, circul_response, ha_hashresponse)
 
 def domain_check(arg, raw, verbose):
-  url = f"https://www.virustotal.com/api/v3/domains/{arg}"
+  #Virus Total API Check
+  url = f'https://www.virustotal.com/api/v3/domains/{arg}'
   headers = {
-    "accept": "application/json",
-    "x-apikey": f"{Virustotal}"
+    'accept': 'application/json',
+    'x-apikey': f'{Virustotal}'
     }
   vt_domainres = requests.get(url, headers=headers)
 
@@ -171,26 +179,82 @@ def domain_check(arg, raw, verbose):
     print("Printing Domain Output file")
     domain_outfile(arg, vt_domainres)
 
-# Run Domain Check Loop
+#UrlScan.io Request and Report
+def url_scan(arg, raw, verbose):
+  scan_url = 'https://urlscan.io/api/v1/scan/'
+  headers = {
+    'API-Key': f'{UrlScan}',
+    'Content-Type':'application/json'
+    }
+  data = {
+    'url': f'{arg}',
+    'visibility': 'public'
+    }
+  response = requests.post(scan_url, headers=headers, data=json.dumps(data))
+  response_js = json.loads(response.text)
+  uuid = response_js["uuid"]
+  print(uuid)
+  print(f"Wait 30s then check for completed scan result of uuid: {uuid}")
+  time.sleep(30)
+  re_scan(uuid, raw, verbose)
+
+#Run UrlScan Loop
+def scan_loop(args):
+  raw = args.r
+  verbose = args.v
+  for arg in args.u:
+    url_scan(arg, raw, verbose)
+
+#Run Return UrlScan Check
+def re_scan(uuid, raw, verbose):
+  re_url = f'https://urlscan.io/api/v1/result/{uuid}'
+  headers = {
+    'API-Key': f'{UrlScan}',
+    'Content-Type':'application/json'
+    }
+  re_response = requests.get(re_url, headers=headers)
+  recheck_loop(uuid, re_response, raw, verbose)
+  
+#Build Recheck loop for waiting for UrlScan.io
+def recheck_loop(uuid, re_response, raw, verbose):
+  if re_response.status_code == 404:
+    print(f"Scan of uuid '{uuid}' is not finished, wait 10s repeat query")
+    time.sleep(10)
+    re_scan(uuid)
+  elif re_response.status_code == 410:
+    print(f"Scan of uuid '{uuid}' has been deleted, re-run CLI command and confirm url provided")
+  elif re_response.status_code == 200:
+    print("Scan Complete Printing Output Information Now.")
+    if raw == True:
+      print("Printing Raw Scan Output")
+      print_raw_urlscan(re_response)
+    elif verbose == True:
+      print("Print Verbose file Output")
+      verbose_urlscan(uuid, re_response)
+    else:
+      print("Printing Standard Output with Verdict information")
+      write_urlscan(uuid, re_response)
+
+#Run Domain Check Loop
 def domainloop(args):
   raw = args.r
   verbose = args.v
   for arg in args.d:
     domain_check(arg, raw, verbose)
 
-# Confirm IP format and Start IP History Loop
+#Confirm IP format and Start IP History Loop
 def iphistloop(args):
+  #This doesn't completely filter out values over 255.255.255.255 but catches letters and blank/missing fields
   ipv4_pattern = r"\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}"
   raw = args.r
   verbose = args.v
-  #This doesn't completely filter out values over 255.255.255.255 but catches letters and blank/missing fields
   for arg in args.ip:
     if re.match(ipv4_pattern, arg, re.ASCII):
       IP_Hist(arg, raw, verbose)
     else:
       print("Recheck IP address for formatting and values below 255.255.255.255")
 
-# Grab Hash Argument and run Hash Check loop
+#Grab Hash Argument and run Hash Check loop
 def hashloop(args):
   raw = args.r
   verbose = args.v

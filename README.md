@@ -1,25 +1,27 @@
-Build Automated Command-Line OSINT Search Utility to report on IP/Domains/File Hashes found in IOC's.
+Automated Command-Line OSINT Search Utility to report on IP/Domains/File Hashes found in Potential IOC's.
 
--Initial commit with functionality to grab and report of aspects from Virus Total IP Search
-
-OSINT V1 Goals:
-1. Finalized V1 intends to include:
-2. IP History File from sources:
+OSINT V1 Completed List:
+1. IP History File from sources:
   -AbuseIPDB API,
   -Virus Total API,
   -Grey Noise API,
-  -Sans Internet Storm Center API,
-3. Domain Information from Sources:
+2. Domain Information from Sources:
   -Virus Total API,
-4. File Hash Report
+3. File Hash Report
   -Virus Total API,
   -Hashlookup CIRCL_API,
-  -MWDB Core API,
-5. Email Reputation from Sources:
-  -EmailRep API,
-6. URL Check/Scan from
-  -Dump from URLHaus,
+  -Hybrid Analysis API
+4. URL Scan from
   -URLScan.io,
+    -Send URL for Scan,
+    -Check Return and print return verdict from UrlScan.io
+5. Act on Additional Parameters:
+  -Verbose Switch
+  -Raw Switch
+
+OSINT v1 remaining Goal:
+1. Email Reputation from Source:
+  -EmailRep API,
 
 Initial Setup for use each user will need to gather the Requisit API Keys.
 This will include creating a file titled "Config.json" with the following format:
@@ -32,5 +34,3 @@ This will include creating a file titled "Config.json" with the following format
 }
 
 ***Each of these entities has their own API Access Rules, each user is responsible for ensuring access is within those rules.
-
-Each of the Above steps will generate a clear report with summary information on the top of the page followed by detailed information and include the option for a verbose (-v) output with additional details.
