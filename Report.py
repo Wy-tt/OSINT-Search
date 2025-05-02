@@ -1,21 +1,34 @@
 import json
 import os
+import sys
+import shlex
 
-def verbose_outfile(arg, vtiphist, ipdbhist, greyhist):
+def verbose_outfile(arg, vtiphist, ipdbhist, grey_response):
     print("Building Verbose IP History File")
+    greyhist = json.loads(grey_response.text)
     votes = vtiphist["data"]["attributes"]["total_votes"]
     whois = vtiphist["data"]["attributes"]["whois"]
     country = vtiphist["data"]["attributes"]["country"]
-    ca_information = vtiphist["data"]["attributes"]["last_https_certificate"]["extensions"]["ca_information_access"]
-    cert_issuer = vtiphist["data"]["attributes"]["last_https_certificate"]["issuer"]
-    cert_subject = vtiphist["data"]["attributes"]["last_https_certificate"]["subject"]
-    valid  = vtiphist["data"]["attributes"]["last_https_certificate"]["validity"]
+    try:
+        ca_information = vtiphist["data"]["attributes"]["last_https_certificate"]["extensions"]["ca_information_access"]
+        cert_issuer = vtiphist["data"]["attributes"]["last_https_certificate"]["issuer"]
+        cert_subject = vtiphist["data"]["attributes"]["last_https_certificate"]["subject"]
+        valid  = vtiphist["data"]["attributes"]["last_https_certificate"]["validity"]
+    except:
+        KeyError
+        ca_information = "No HTTPS Certificate Information Provided"
+        cert_issuer = "No HTTPS Certificate Information Provided"
+        cert_subject = "No HTTPS Certificate Information Provided"
+        valid = "No HTTPS Certificate Information Provided"
     confidence = ipdbhist["data"]["abuseConfidenceScore"]
     country2 = ipdbhist["data"]["countryCode"]
     usage = ipdbhist["data"]["usageType"]
     whitelist = ipdbhist["data"]["isWhitelisted"]
     domain = ipdbhist["data"]["domain"]
-    classification = greyhist["classification"]
+    if grey_response.status_code == 200:
+        classification = greyhist["classification"]
+    else:
+        classification = 'Not Found'
     home_dir = os.path.expanduser("~")
     outputfile = f"{arg}-verbose.txt"
     output = os.path.join(home_dir, outputfile)
@@ -44,17 +57,28 @@ Abuse IPDB Domain: {domain}
 Certificate Valid Dates:
 {valid}
 """)
+    outfile.close()
+    ask_open(output)
 
-def write_outfile(arg, vtiphist, ipdbhist, greyhist):
+def write_outfile(arg, vtiphist, ipdbhist, grey_response):
     print("Building IP History File")
+    greyhist = json.loads(grey_response.text)
     votes = vtiphist["data"]["attributes"]["total_votes"]
     whois = vtiphist["data"]["attributes"]["whois"]
     country = vtiphist["data"]["attributes"]["country"]
-    ca_information = vtiphist["data"]["attributes"]["last_https_certificate"]["extensions"]["ca_information_access"]
-    valid  = vtiphist["data"]["attributes"]["last_https_certificate"]["validity"]
+    try:
+        ca_information = vtiphist["data"]["attributes"]["last_https_certificate"]["extensions"]["ca_information_access"]
+        valid  = vtiphist["data"]["attributes"]["last_https_certificate"]["validity"]
+    except:
+        KeyError
+        ca_information = "No HTTPS Certificate Information Provided"
+        valid = "No HTTPS Certificate Information Provided"
     confidence = ipdbhist["data"]["abuseConfidenceScore"]
     country2 = ipdbhist["data"]["countryCode"]
-    classification = greyhist["classification"]
+    if grey_response.status_code == 200:
+        classification = greyhist["classification"]
+    else:
+        classification = 'Not Found'
     home_dir = os.path.expanduser("~")
     outputfile = f"{arg}-Standard.txt"
     output = os.path.join(home_dir, outputfile)
@@ -77,6 +101,8 @@ Certificate information:
 Certificate Valid Dates:
 {valid}
 """)
+    outfile.close()
+    ask_open(output)
     
 def domain_outfile(arg, vt_domainres):
     print("Building Domain History File")
@@ -104,6 +130,8 @@ Certificate information:
 Certificate Valid Dates:
 {valid}
 """)
+    outfile.close()
+    ask_open(output)
     
 def verbose_domain(arg, vt_domainres):
     print("Building Verbose Domain History File")
@@ -139,6 +167,8 @@ Subject Alternative names list:
 Business Categories:
 {category}
 """)
+    outfile.close()
+    ask_open(output)
 
 def verbose_hashfile(arg, vt_hashresponse, circul_response, ha_hashresponse):
     print("Building Verbose Hash Information File")
@@ -194,6 +224,8 @@ Scale: 0-100
 50 = No Opinion of the File
 > 50 = Appears in Multiple sources and has an improved Trust
 """)
+    outfile.close()
+    ask_open(output)
 
 def write_hashfile(arg, vt_hashresponse, circul_response, ha_hashresponse):
     print("Building Hash Information File")
@@ -239,6 +271,8 @@ Scale: 0-100
 
 Circul Associated Filename:
 """)
+    outfile.close()
+    ask_open(output)
     
 def write_urlscan(uuid, re_response):
     print("Building URL Scan Result File")
@@ -254,6 +288,8 @@ UUID of Scan: {uuid}
 Votes Listed: 
 {verdict}
 """)
+    outfile.close()
+    ask_open(output)
     
 def verbose_urlscan(uuid, re_response):
     print("Building URL Scan Result File")
@@ -269,6 +305,8 @@ UUID of Scan: {uuid}
 Votes Listed: 
 {verdict}
 """)
+    outfile.close()
+    ask_open(output)
 
 def print_raw(arg, vtiphist, ipdbhist):
   home_dir = os.path.expanduser("~")
@@ -325,3 +363,24 @@ def print_raw_urlscan(re_response):
         json.dump(urlscan, file)
         file.close
         print(f"UrlScan.io Raw URL Report Json file stored {url_out}")
+
+def ask_open(output):
+    openfile = input("""Would you like to Open these files to review? (y/n):
+""")
+    if openfile.lower() == "y":
+        open_file(output)
+    else:
+        print(f"Output file is stored here: {output}")
+
+def open_file(filename):
+    detectos = sys.platform
+    print(f"Detected OS {detectos}")
+    if sys.platform.startswith('darwin'):
+        os.system('open ' + shlex.quote(filename))
+    elif sys.platform.startswith('win32'):
+        os.system('start ' + filename)
+    elif sys.platform.startswith('linux'):
+        os.system('xdg-open ' + shlex.quote(filename))
+    else:
+        print("Unsupported operating system.")
+    

@@ -5,6 +5,7 @@ import requests
 import re
 import sys
 import time
+import socket
 
 # Import Report Builders from Report.py
 from Report import verbose_outfile
@@ -106,9 +107,9 @@ def IP_Hist(arg, raw, verbose):
     print_raw(arg, vtiphist, ipdbhist)
   elif verbose == True:
     print("Print Verbose Output File")
-    verbose_outfile(arg, vtiphist, ipdbhist, greyhist)
+    verbose_outfile(arg, vtiphist, ipdbhist, grey_response)
   else:
-    write_outfile(arg, vtiphist, ipdbhist, greyhist)
+    write_outfile(arg, vtiphist, ipdbhist, grey_response)
 
 #Grab and report on File Hash Reputation
 def filerep(arg, hashsearch, raw, verbose):
@@ -243,16 +244,23 @@ def domainloop(args):
     domain_check(arg, raw, verbose)
 
 #Confirm IP format and Start IP History Loop
+def valid_ip(arg):
+  try:
+    socket.inet_aton(arg)
+    return True
+  except:
+    return False
+
 def iphistloop(args):
-  #This doesn't completely filter out values over 255.255.255.255 but catches letters and blank/missing fields
-  ipv4_pattern = r"\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}"
   raw = args.r
   verbose = args.v
   for arg in args.ip:
-    if re.match(ipv4_pattern, arg, re.ASCII):
+    if valid_ip(arg) == True:
       IP_Hist(arg, raw, verbose)
-    else:
+    elif valid_ip(arg) == False:
       print("Recheck IP address for formatting and values below 255.255.255.255")
+    else:
+      print("Something else Broke")
 
 #Grab Hash Argument and run Hash Check loop
 def hashloop(args):

@@ -31,6 +31,7 @@ This will include creating a file titled "Config.json" with the following format
   "AbuseIPDB": "Key_Value",
   "GreyNoise": "Key_Value",
   "Hybrid Analysis": "Key_Value"
+  "UrlScan": "Key_Value"
 }
 
 ***Each of these entities has their own API Access Rules, each user is responsible for ensuring access is within those rules.
