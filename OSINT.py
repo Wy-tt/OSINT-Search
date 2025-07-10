@@ -45,7 +45,7 @@ def main():
       iphistloop(args)
     elif (input != None) & (var == 'file'):
       print(f"File Hash Provided: {args.file}")
-      hashloop(args)
+      filerep(args)
     elif (input != None) & (var == 'd'):
       print(f"Domain Present: {input}")
       domainloop(args)
@@ -71,35 +71,13 @@ UrlScan = api_keys["UrlScan"]
 
 def IP_Hist(arg, raw, verbose):
   #Virus Total API Request
-  vt_url = f'https://www.virustotal.com/api/v3/ip_addresses/{arg}'
-  vt_headers = {
-    'accept': 'application/json',
-    'x-apikey': f'{Virustotal}'
-  }
-  vtresponse = requests.get(vt_url, headers=vt_headers)
-  vtiphist = json.loads(vtresponse.text)
+  vtiphist = vt_ip_check(arg)
 
   #AbuseIPDB API Request
-  ipdb_url = 'https://api.abuseipdb.com/api/v2/check'
-  querystring = {
-    'ipAddress': f'{arg}',
-    'maxAgeInDays': '90'
-  }
-  ipdb_headers = {
-    'Accept': 'application/json',
-    'Key': f'{AbuseIPDB}'
-  }
-  ipdb_response = requests.request(method='GET', url=ipdb_url, headers=ipdb_headers, params=querystring)
-  ipdbhist = json.loads(ipdb_response.content)
+  ipdbhist = abuse_IPDB_check(arg)
    
   #Grey Noise API IP Lookup
-  grey_url = f'https://api.greynoise.io/v3/community/{arg}'
-  grey_headers = {
-    'accept': 'application/json',
-    'key': f'{GreyNoise}'
-  }
-  grey_response = requests.get(grey_url, headers=grey_headers)
-  greyhist = json.loads(grey_response.text)
+  grey_response = grey_ip_check(arg)
 
   #Call Output File Function including handles for Verbose and Raw Output
   if raw == True:
@@ -111,55 +89,104 @@ def IP_Hist(arg, raw, verbose):
   else:
     write_outfile(arg, vtiphist, ipdbhist, grey_response)
 
+# IP History API Calls
+def vt_ip_check(arg):
+  vt_url = f'https://www.virustotal.com/api/v3/ip_addresses/{arg}'
+  vt_headers = {
+    'accept': 'application/json',
+    'x-apikey': f'{Virustotal}'
+  }
+  vtresponse = requests.get(vt_url, headers=vt_headers)
+  return vtresponse.json()
+
+def abuse_IPDB_check(arg):
+  ipdb_url = 'https://api.abuseipdb.com/api/v2/check'
+  querystring = {
+    'ipAddress': f'{arg}',
+    'maxAgeInDays': '90'
+  }
+  ipdb_headers = {
+    'Accept': 'application/json',
+    'Key': f'{AbuseIPDB}'
+  }
+  ipdb_response = requests.get(url=ipdb_url, headers=ipdb_headers, params=querystring)
+  return ipdb_response
+
+def grey_ip_check(arg):
+  grey_url = f'https://api.greynoise.io/v3/community/{arg}'
+  grey_headers = {
+    'accept': 'application/json',
+    'key': f'{GreyNoise}'
+  }
+  grey_response = requests.get(grey_url, headers=grey_headers)
+  return grey_response
+
 #Grab and report on File Hash Reputation
-def filerep(arg, hashsearch, raw, verbose):
-  #VirusTotal API
+def filerep(args):
+  raw = args.r
+  verbose = args.v
+  for arg in args.file:
+    #VirusTotal API
+    vt_hashresponse = vt_hashrep(arg)
+    #Hybrid Analysis API
+    ha_hashresponse = ha_hashrep(arg)
+    #Hash Type Check
+    res = hashloop(args)
+    circul_response = cir_hashrep(arg, res)
+    
+    if raw == True:
+      print("Output Raw Json to files")
+      vthashcon = json.loads(vt_hashresponse.content)
+      circulhashcon = json.loads(circul_response.content)
+      hahashcon = json.loads(ha_hashresponse.content)
+      print_raw_hash(vthashcon, circulhashcon, hahashcon)
+    elif verbose == True:
+      print("Print Verbose Output File")
+      verbose_hashfile(arg, vt_hashresponse, circul_response, ha_hashresponse)
+    else:
+      write_hashfile(arg, vt_hashresponse, circul_response, ha_hashresponse)
+
+def vt_hashrep(arg):
   url = f'https://www.virustotal.com/api/v3/files/{arg}'
   headers = {
     'accept': 'application/json',
     'x-apikey': f'{Virustotal}'
     }
   vt_hashresponse = requests.get(url, headers=headers)
+  return vt_hashresponse
 
-  #Hybrid Analysis API
+def ha_hashrep(arg):
   haurl = f'https://www.hybrid-analysis.com/api/v2/overview/{arg}'
   haheaders = {
     'accept': 'application/json',
     'api-key': f'{HybridAnalysis}'
   }
   ha_hashresponse = requests.get(url=haurl, headers=haheaders)
+  return ha_hashresponse
 
+def cir_hashrep(arg, res):
   #Circul Requires searches Separated by Hash Type
-  if hashsearch == 'md5':
+  if res == 'md5':
     url = f'https://hashlookup.circl.lu/lookup/md5/{arg}'
     headers = {
       'accept': 'application/json',
       }
     circul_response = requests.get(url, headers=headers)
-  elif hashsearch == 'sha1':
+    return circul_response
+  elif res == 'sha1':
     url = f'https://hashlookup.circl.lu/lookup/sha1/{arg}'
     headers = {
       'accept': 'application/json',
       }
     circul_response = requests.get(url, headers=headers)
-  elif hashsearch == 'sha256':
+    return circul_response
+  elif res == 'sha256':
     url = f'https://hashlookup.circl.lu/lookup/sha256/{arg}'
     headers = {
       'accept': 'application/json',
       }
     circul_response = requests.get(url, headers=headers)
-
-  if raw == True:
-    print("Output Raw Json to files")
-    vthashcon = json.loads(vt_hashresponse.content)
-    circulhashcon = json.loads(circul_response.content)
-    hahashcon = json.loads(ha_hashresponse.content)
-    print_raw_hash(vthashcon, circulhashcon, hahashcon)
-  elif verbose == True:
-    print("Print Verbose Output File")
-    verbose_hashfile(arg, vt_hashresponse, circul_response, ha_hashresponse)
-  else:
-    write_hashfile(arg, vt_hashresponse, circul_response, ha_hashresponse)
+    return circul_response
 
 def domain_check(arg, raw, verbose):
   #Virus Total API Check
@@ -263,26 +290,23 @@ def iphistloop(args):
       print("Something else Broke")
 
 #Grab Hash Argument and run Hash Check loop
-def hashloop(args):
-  raw = args.r
-  verbose = args.v
-  hashtype = input("""Please Choose the Hash Algorithm for Search:
+def hash_input():
+  return input("""Please Choose the Hash Algorithm for Search:
 1. MD5
 2. SHA1
 3. SHA256
 """)
-  for arg in args.file:
-    if hashtype == '1':
-      hashsearch = 'md5'
-      filerep(arg, hashsearch, raw, verbose)
-    elif hashtype == '2':
-      hashsearch = 'sha1'
-      filerep(arg, hashsearch, raw, verbose)
-    elif hashtype == '3':
-      hashsearch = 'sha256'
-      filerep(arg, hashsearch, raw, verbose)
-    else:
-      print("The only currently supported values are 1, 2, 3. Please re-run the program.")
+
+def hashloop(args):
+  hashtype = hash_input()
+  if hashtype == '1':
+    return 'md5'
+  elif hashtype == '2':
+    return 'sha1'
+  elif hashtype == '3':
+    return 'sha256'
+  else:
+    print("The only currently supported values are 1, 2, 3. Please re-run the program.")
 
 if __name__ == "__main__":
   main()

@@ -276,8 +276,7 @@ Circul Associated Filename:
     
 def write_urlscan(uuid, re_response):
     print("Building URL Scan Result File")
-    urlscan = json.loads(re_response.text)
-    verdict = urlscan["verdicts"]
+    verdict = re_response["verdicts"]
     home_dir = os.path.expanduser("~")
     outputfile = "Urlscan-Standard.txt"
     output = os.path.join(home_dir, outputfile)
@@ -293,8 +292,7 @@ Votes Listed:
     
 def verbose_urlscan(uuid, re_response):
     print("Building URL Scan Result File")
-    urlscan = json.loads(re_response.text)
-    verdict = urlscan["verdicts"]
+    verdict = re_response["verdicts"]
     home_dir = os.path.expanduser("~")
     outputfile = "Urlscan-Verbose.txt"
     output = os.path.join(home_dir, outputfile)
