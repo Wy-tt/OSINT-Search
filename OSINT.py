@@ -110,7 +110,7 @@ def abuse_IPDB_check(arg):
     'Key': f'{AbuseIPDB}'
   }
   ipdb_response = requests.get(url=ipdb_url, headers=ipdb_headers, params=querystring)
-  return ipdb_response
+  return ipdb_response.json()
 
 def grey_ip_check(arg):
   grey_url = f'https://api.greynoise.io/v3/community/{arg}'
