@@ -2,6 +2,7 @@ import json
 import os
 import sys
 import shlex
+from datetime import datetime, timezone
 
 def verbose_outfile(arg, vtiphist, ipdbhist, grey_response):
     print("Building Verbose IP History File")
@@ -112,6 +113,11 @@ def domain_outfile(arg, vt_domainres):
     reputation = vtdomain["data"]["attributes"]["reputation"]
     ca_information = vtdomain["data"]["attributes"]["last_https_certificate"]["extensions"]["ca_information_access"]
     valid  = vtdomain["data"]["attributes"]["last_https_certificate"]["validity"]
+    if vtdomain['data']['attributes'].get('creation_date'):
+        epoch_timestamp = vtdomain['data']['attributes']['creation_date']
+        utc_datetime = datetime.fromtimestamp(epoch_timestamp, timezone.utc) if epoch_timestamp else None
+    else:
+        utc_datetime = None
     home_dir = os.path.expanduser("~")
     outputfile = f"{arg}-Standard.txt"
     output = os.path.join(home_dir, outputfile)
@@ -129,6 +135,8 @@ Certificate information:
 {ca_information}
 Certificate Valid Dates:
 {valid}
+Domain Creation Date (UTC): 
+{utc_datetime}
 """)
     outfile.close()
     ask_open(output)
@@ -141,7 +149,12 @@ def verbose_domain(arg, vt_domainres):
     reputation = vtdomain["data"]["attributes"]["reputation"]
     ca_information = vtdomain["data"]["attributes"]["last_https_certificate"]["extensions"]["ca_information_access"]
     valid  = vtdomain["data"]["attributes"]["last_https_certificate"]["validity"]
-    certissue = valid  = vtdomain["data"]["attributes"]["last_https_certificate"]["issuer"]
+    if vtdomain['data']['attributes'].get('creation_date'):
+        epoch_timestamp = vtdomain['data']['attributes']['creation_date']
+        utc_datetime = datetime.fromtimestamp(epoch_timestamp, timezone.utc) if epoch_timestamp else None
+    else:
+        utc_datetime = None
+    certissue = vtdomain["data"]["attributes"]["last_https_certificate"]["issuer"]
     altname = vtdomain["data"]["attributes"]["last_https_certificate"]["extensions"]["subject_alternative_name"]
     category =  vtdomain["data"]["attributes"]["categories"]
     home_dir = os.path.expanduser("~")
@@ -162,6 +175,8 @@ Certificate information:
 {certissue}
 Certificate Valid Dates:
 {valid}
+Domain Creation Date (UTC): 
+{utc_datetime}
 Subject Alternative names list:
 {altname}
 Business Categories:

@@ -21,6 +21,10 @@ from Report import verbose_domain
 from Report import write_urlscan
 from Report import verbose_urlscan
 
+REQUEST_TIMEOUT = 15
+URLSCAN_POLL_INTERVAL = 10
+URLSCAN_MAX_ATTEMPTS = 12
+
 def main():
   # ArgParse Options
   parser = argparse.ArgumentParser()
@@ -67,6 +71,8 @@ AbuseIPDB = api_keys["AbuseIPDB"]
 GreyNoise = api_keys["GreyNoise"]
 HybridAnalysis = api_keys["Hybrid Analysis"]
 UrlScan = api_keys["UrlScan"]
+MxToolbox = api_keys["MxToolbox"]
+AbstractAPI = api_keys["AbstractAPI"]
 
 
 def IP_Hist(arg, raw, verbose):
@@ -96,7 +102,7 @@ def vt_ip_check(arg):
     'accept': 'application/json',
     'x-apikey': f'{Virustotal}'
   }
-  vtresponse = requests.get(vt_url, headers=vt_headers)
+  vtresponse = requests.get(vt_url, headers=vt_headers, timeout=REQUEST_TIMEOUT)
   return vtresponse.json()
 
 def abuse_IPDB_check(arg):
@@ -109,7 +115,7 @@ def abuse_IPDB_check(arg):
     'Accept': 'application/json',
     'Key': f'{AbuseIPDB}'
   }
-  ipdb_response = requests.get(url=ipdb_url, headers=ipdb_headers, params=querystring)
+  ipdb_response = requests.get(url=ipdb_url, headers=ipdb_headers, params=querystring, timeout=REQUEST_TIMEOUT)
   return ipdb_response.json()
 
 def grey_ip_check(arg):
@@ -118,7 +124,7 @@ def grey_ip_check(arg):
     'accept': 'application/json',
     'key': f'{GreyNoise}'
   }
-  grey_response = requests.get(grey_url, headers=grey_headers)
+  grey_response = requests.get(grey_url, headers=grey_headers, timeout=REQUEST_TIMEOUT)
   return grey_response
 
 #Grab and report on File Hash Reputation
@@ -152,7 +158,7 @@ def vt_hashrep(arg):
     'accept': 'application/json',
     'x-apikey': f'{Virustotal}'
     }
-  vt_hashresponse = requests.get(url, headers=headers)
+  vt_hashresponse = requests.get(url, headers=headers, timeout=REQUEST_TIMEOUT)
   return vt_hashresponse
 
 def ha_hashrep(arg):
@@ -161,7 +167,7 @@ def ha_hashrep(arg):
     'accept': 'application/json',
     'api-key': f'{HybridAnalysis}'
   }
-  ha_hashresponse = requests.get(url=haurl, headers=haheaders)
+  ha_hashresponse = requests.get(url=haurl, headers=haheaders, timeout=REQUEST_TIMEOUT)
   return ha_hashresponse
 
 def cir_hashrep(arg, res):
@@ -171,21 +177,21 @@ def cir_hashrep(arg, res):
     headers = {
       'accept': 'application/json',
       }
-    circul_response = requests.get(url, headers=headers)
+    circul_response = requests.get(url, headers=headers, timeout=REQUEST_TIMEOUT)
     return circul_response
   elif res == 'sha1':
     url = f'https://hashlookup.circl.lu/lookup/sha1/{arg}'
     headers = {
       'accept': 'application/json',
       }
-    circul_response = requests.get(url, headers=headers)
+    circul_response = requests.get(url, headers=headers, timeout=REQUEST_TIMEOUT)
     return circul_response
   elif res == 'sha256':
     url = f'https://hashlookup.circl.lu/lookup/sha256/{arg}'
     headers = {
       'accept': 'application/json',
       }
-    circul_response = requests.get(url, headers=headers)
+    circul_response = requests.get(url, headers=headers, timeout=REQUEST_TIMEOUT)
     return circul_response
 
 def domain_check(arg, raw, verbose):
@@ -195,7 +201,7 @@ def domain_check(arg, raw, verbose):
     'accept': 'application/json',
     'x-apikey': f'{Virustotal}'
     }
-  vt_domainres = requests.get(url, headers=headers)
+  vt_domainres = requests.get(url, headers=headers, timeout=REQUEST_TIMEOUT)
 
   if raw == True:
     print("Print Raw Output File")
@@ -218,7 +224,7 @@ def url_scan(arg, raw, verbose):
     'url': f'{arg}',
     'visibility': 'public'
     }
-  response = requests.post(scan_url, headers=headers, data=json.dumps(data))
+  response = requests.post(scan_url, headers=headers, data=json.dumps(data), timeout=REQUEST_TIMEOUT)
   response_js = json.loads(response.text)
   uuid = response_js["uuid"]
   print(uuid)
@@ -240,15 +246,20 @@ def re_scan(uuid, raw, verbose):
     'API-Key': f'{UrlScan}',
     'Content-Type':'application/json'
     }
-  re_response = requests.get(re_url, headers=headers)
-  recheck_loop(uuid, re_response, raw, verbose)
+  for attempt in range(URLSCAN_MAX_ATTEMPTS):
+    re_response = requests.get(re_url, headers=headers, timeout=REQUEST_TIMEOUT)
+    if re_response.status_code != 404:
+      recheck_loop(uuid, re_response, raw, verbose)
+      return
+    if attempt < URLSCAN_MAX_ATTEMPTS - 1:
+      print(f"Scan of uuid '{uuid}' is not finished, wait {URLSCAN_POLL_INTERVAL}s before retrying")
+      time.sleep(URLSCAN_POLL_INTERVAL)
+  print(f"Scan of uuid '{uuid}' did not finish after {URLSCAN_MAX_ATTEMPTS} checks")
   
 #Build Recheck loop for waiting for UrlScan.io
 def recheck_loop(uuid, re_response, raw, verbose):
   if re_response.status_code == 404:
-    print(f"Scan of uuid '{uuid}' is not finished, wait 10s repeat query")
-    time.sleep(10)
-    re_scan(uuid)
+    print(f"Scan of uuid '{uuid}' is not finished")
   elif re_response.status_code == 410:
     print(f"Scan of uuid '{uuid}' has been deleted, re-run CLI command and confirm url provided")
   elif re_response.status_code == 200:
